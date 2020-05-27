@@ -144,7 +144,7 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-uint8_t outputPacket[18] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, '\r', '\n' };
+uint8_t outputPacket[32] = { '$', 0x02, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, '\r', '\n' };
 
 
 
@@ -259,104 +259,126 @@ void loop() {
     if (!dmpReady) return;
     // read a packet from FIFO
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
-        #ifdef OUTPUT_READABLE_QUATERNION
-            // display quaternion values in easy matrix form: w x y z
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            Serial.print("quat\t");
-            Serial.print(q.w);
-            Serial.print("\t");
-            Serial.print(q.x);
-            Serial.print("\t");
-            Serial.print(q.y);
-            Serial.print("\t");
-            Serial.println(q.z);
-        #endif
+//        #ifdef OUTPUT_READABLE_QUATERNION
+//            // display quaternion values in easy matrix form: w x y z
+//            mpu.dmpGetQuaternion(&q, fifoBuffer);
+//            Serial.print("quat\t");
+//            Serial.print(q.w);
+//            Serial.print("\t");
+//            Serial.print(q.x);
+//            Serial.print("\t");
+//            Serial.print(q.y);
+//            Serial.print("\t");
+//            Serial.println(q.z);
+//        #endif
+//
+//        #ifdef OUTPUT_READABLE_EULER
+//            // display Euler angles in degrees
+//            mpu.dmpGetQuaternion(&q, fifoBuffer);
+//            mpu.dmpGetEuler(euler, &q);
+//            Serial.print("euler\t");
+//            Serial.print(euler[0] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.print(euler[1] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.println(euler[2] * 180/M_PI);
+//        #endif
+//
+//        #ifdef OUTPUT_READABLE_YAWPITCHROLL
+//            // display Euler angles in degrees
+//            mpu.dmpGetQuaternion(&q, fifoBuffer);
+//            mpu.dmpGetGravity(&gravity, &q);
+//            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+//            Serial.print("ypr\t");
+//            Serial.print(ypr[0] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.print(ypr[1] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.println(ypr[2] * 180/M_PI);
+//        #endif
+//
+//        #ifdef OUTPUT_READABLE_REALACCEL
+//            // display real acceleration, adjusted to remove gravity
+//            mpu.dmpGetQuaternion(&q, fifoBuffer);
+//            mpu.dmpGetAccel(&aa, fifoBuffer);
+//            mpu.dmpGetGravity(&gravity, &q);
+//            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+//            Serial.print("areal\t");
+//            Serial.print(aaReal.x);
+//            Serial.print("\t");
+//            Serial.print(aaReal.y);
+//            Serial.print("\t");
+//            Serial.println(aaReal.z);
+//        #endif
+//
+//        #ifdef OUTPUT_READABLE_WORLDACCEL
+//            // display initial world-frame acceleration, adjusted to remove gravity
+//            // and rotated based on known orientation from quaternion
+//            mpu.dmpGetQuaternion(&q, fifoBuffer);
+//            mpu.dmpGetAccel(&aa, fifoBuffer);
+//            mpu.dmpGetGravity(&gravity, &q);
+//            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+//            mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
+//            Serial.print("aworld\t");
+//            Serial.print(aaWorld.x);
+//            Serial.print("\t");
+//            Serial.print(aaWorld.y);
+//            Serial.print("\t");
+//            Serial.println(aaWorld.z);
+//        #endif
+//    
+//        #ifdef OUTPUT_TEAPOT
+//            // display quaternion values in InvenSense Teapot demo format:
+//            teapotPacket[2] = fifoBuffer[0];
+//            teapotPacket[3] = fifoBuffer[1];
+//            teapotPacket[4] = fifoBuffer[4];
+//            teapotPacket[5] = fifoBuffer[5];
+//            teapotPacket[6] = fifoBuffer[8];
+//            teapotPacket[7] = fifoBuffer[9];
+//            teapotPacket[8] = fifoBuffer[12];
+//            teapotPacket[9] = fifoBuffer[13];
+//            Serial.write(teapotPacket, 14);
+//            teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
+//        #endif
 
-        #ifdef OUTPUT_READABLE_EULER
-            // display Euler angles in degrees
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetEuler(euler, &q);
-            Serial.print("euler\t");
-            Serial.print(euler[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(euler[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(euler[2] * 180/M_PI);
-        #endif
-
-        #ifdef OUTPUT_READABLE_YAWPITCHROLL
-            // display Euler angles in degrees
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-            Serial.print("ypr\t");
-            Serial.print(ypr[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(ypr[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(ypr[2] * 180/M_PI);
-        #endif
-
-        #ifdef OUTPUT_READABLE_REALACCEL
-            // display real acceleration, adjusted to remove gravity
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetAccel(&aa, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-            Serial.print("areal\t");
-            Serial.print(aaReal.x);
-            Serial.print("\t");
-            Serial.print(aaReal.y);
-            Serial.print("\t");
-            Serial.println(aaReal.z);
-        #endif
-
-        #ifdef OUTPUT_READABLE_WORLDACCEL
-            // display initial world-frame acceleration, adjusted to remove gravity
-            // and rotated based on known orientation from quaternion
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetAccel(&aa, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-            mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-            Serial.print("aworld\t");
-            Serial.print(aaWorld.x);
-            Serial.print("\t");
-            Serial.print(aaWorld.y);
-            Serial.print("\t");
-            Serial.println(aaWorld.z);
-        #endif
-    
-        #ifdef OUTPUT_TEAPOT
-            // display quaternion values in InvenSense Teapot demo format:
-            teapotPacket[2] = fifoBuffer[0];
-            teapotPacket[3] = fifoBuffer[1];
-            teapotPacket[4] = fifoBuffer[4];
-            teapotPacket[5] = fifoBuffer[5];
-            teapotPacket[6] = fifoBuffer[8];
-            teapotPacket[7] = fifoBuffer[9];
-            teapotPacket[8] = fifoBuffer[12];
-            teapotPacket[9] = fifoBuffer[13];
-            Serial.write(teapotPacket, 14);
-            teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
-        #endif
-        #ifdef OUTPUT_ACCEL_QUATERNION
-            outputPacket[2] = fifoBuffer[0];
-            outputPacket[3] = fifoBuffer[1];
-            outputPacket[4] = fifoBuffer[4];
-            outputPacket[5] = fifoBuffer[5];
-            outputPacket[6] = fifoBuffer[8];
-            outputPacket[7] = fifoBuffer[9];
-            outputPacket[8] = fifoBuffer[12];
-            outputPacket[9] = fifoBuffer[13];
-            outputPacket[10] = fifoBuffer[28];
-            outputPacket[11] = fifoBuffer[29];
-            outputPacket[12] = fifoBuffer[32];
-            outputPacket[13] = fifoBuffer[33];
-            outputPacket[14] = fifoBuffer[36];
-            outputPacket[15] = fifoBuffer[37];
-            Serial.write(outputPacket, 18);
-        #endif
+          outputPacket[2] = fifoBuffer[0];
+          outputPacket[3] = fifoBuffer[1];
+          outputPacket[4] = fifoBuffer[2];
+          outputPacket[5] = fifoBuffer[3];
+          
+          outputPacket[6] = fifoBuffer[4];
+          outputPacket[7] = fifoBuffer[5];
+          outputPacket[8] = fifoBuffer[6];
+          outputPacket[9] = fifoBuffer[7];
+          
+          outputPacket[10] = fifoBuffer[8];
+          outputPacket[11] = fifoBuffer[9];
+          outputPacket[12] = fifoBuffer[10];
+          outputPacket[13] = fifoBuffer[11];
+          
+          outputPacket[14] = fifoBuffer[12];
+          outputPacket[15] = fifoBuffer[13];
+          outputPacket[16] = fifoBuffer[14];
+          outputPacket[17] = fifoBuffer[15];
+          
+          outputPacket[18] = fifoBuffer[28];
+          outputPacket[19] = fifoBuffer[29];
+          outputPacket[20] = fifoBuffer[30];
+          outputPacket[21] = fifoBuffer[31];
+          
+          outputPacket[22] = fifoBuffer[32];
+          outputPacket[23] = fifoBuffer[33];
+          outputPacket[24] = fifoBuffer[34];
+          outputPacket[25] = fifoBuffer[35];
+          
+          outputPacket[26] = fifoBuffer[36];
+          outputPacket[27] = fifoBuffer[37];
+          outputPacket[28] = fifoBuffer[38];
+          outputPacket[29] = fifoBuffer[39];
+          
+          Serial.write(outputPacket, 32);
+      
+        
 //        #ifdef OUTPUT_ACCEL_QUATERNION
 //            outputPacket[2] = fifoBuffer[0];
 //            outputPacket[3] = fifoBuffer[1];
