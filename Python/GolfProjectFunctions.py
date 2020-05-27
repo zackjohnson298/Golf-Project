@@ -1,14 +1,22 @@
 import serial
 import time
 import matplotlib.pyplot as plt
+from QuaternionMath import *
 
-class SensorFrame():
+class Frame():
 
-    def __init__(self):
+    def __init__(self,frameType):
+        self.type = frameType
         self.q0 = []
         self.q1 = []
         self.q2 = []
         self.q3 = []
+        self.x = [0,0]
+        self.y = [0,0]
+        self.z = [0,0]
+        self.xdot = [0]
+        self.ydot = [0]
+        self.zdot = [0]
         self.xddot = []
         self.yddot = []
         self.zddot = []
@@ -16,61 +24,98 @@ class SensorFrame():
         self.pltLabels = {}
         self.pltLabels['xlabel'] = 'Time t [s]'
         self.pltLabels['Accel_ylabels'] = ['xddot [m/s^2]','yddot [m/s^2]','zddot [m/s^2]']
-        self.pltLabels['Accel_title'] = 'Sensor Frame Accelerations'
+        self.pltLabels['Accel_title'] = frameType + 'Frame Accelerations'
         self.pltLabels['Quat_ylabels'] = ['q0','q1','q2','q3']
-        self.pltLabels['Quat_title'] = 'Sensor Frame Quaternions'
+        self.pltLabels['Quat_title'] = frameType + 'Frame Quaternions'
+
+    def getMotion(self):
+        t = self.t
+        # xdot = self.xddot
+        # ydot = self.yddot
+        # zdot = self.zddot
+        xddot = self.xddot
+        yddot = self.yddot
+        zddot = self.zddot
+        for ii in range(1,len(t)):
+            dt = t[ii] - t[ii-1]
+            self.xdot.append(xddot[ii]*dt + self.xdot[ii-1])
+            self.ydot.append(yddot[ii]*dt + self.ydot[ii-1])
+            self.zdot.append(zddot[ii]*dt + self.zdot[ii-1])
+            if ii >= 2:
+                self.x.append(self.xdot[ii]*dt + self.x[ii-1])
+                self.y.append(self.ydot[ii]*dt + self.y[ii-1])
+                self.z.append(self.zdot[ii]*dt + self.z[ii-1])
 
 
-    def fillData(self,data):
-        for ii in range(0,len(data)):
-            self.q0.append(data[ii][0])
-            self.q1.append(data[ii][1])
-            self.q2.append(data[ii][2])
-            self.q3.append(data[ii][3])
-            self.xddot.append(data[ii][4])
-            self.yddot.append(data[ii][5])
-            self.zddot.append(data[ii][6])
-            self.t.append(data[ii][7])
 
-def plotData(obj,values):
-    for ii in range(0,len(values)):
-        if values[ii] == 'acc':
-            labels = obj.pltLabels
-            plt.figure()
-            plt.suptitle(labels['Accel_title'])
-            plt.subplot(311)
-            plt.plot(obj.t,obj.xddot)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Accel_ylabels'][0])
-            plt.subplot(312)
-            plt.plot(obj.t,obj.yddot)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Accel_ylabels'][1])
-            plt.subplot(313)
-            plt.plot(obj.t,obj.zddot)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Accel_ylabels'][2])
-        if values[ii] == 'quat':
-            labels = obj.pltLabels
-            plt.figure()
-            plt.suptitle(labels['Quat_title'])
-            plt.subplot(411)
-            plt.plot(obj.t,obj.q0)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Quat_ylabels'][0])
-            plt.subplot(412)
-            plt.plot(obj.t,obj.q1)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Quat_ylabels'][1])
-            plt.subplot(413)
-            plt.plot(obj.t,obj.q2)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Quat_ylabels'][2])
-            plt.subplot(414)
-            plt.plot(obj.t,obj.q3)
-            plt.xlabel(labels['xlabel'])
-            plt.ylabel(labels['Quat_ylabels'][3])
-    plt.show()
+    def fillData(self,data,gravity):
+        if self.type == 'Sensor':
+            for ii in range(0,len(data)):
+                self.q0.append(data[ii][0])
+                self.q1.append(data[ii][1])
+                self.q2.append(data[ii][2])
+                self.q3.append(data[ii][3])
+                self.xddot.append(data[ii][4])
+                self.yddot.append(data[ii][5])
+                self.zddot.append(data[ii][6])
+                self.t.append(data[ii][7])
+        elif self.type == 'World':
+            G = [0,0,gravity]
+            for ii in range(0,len(data)):
+                q = data[ii][0:4]
+                vS = data[ii][4:7]
+                vW = Qrotate(q,vS)
+                # GW = Qrotate(q,G)
+                self.q0.append(q[0])
+                self.q1.append(q[1])
+                self.q2.append(q[2])
+                self.q3.append(q[3])
+                self.xddot.append(vW[0] - G[0])#- 2*(q[1]*q[3] - q[0]*q[2]))
+                self.yddot.append(vW[1] - G[1])#- 2*(q[0]*q[1] + q[2]*q[3]))
+                self.zddot.append(vW[2] - G[2])#- (q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]))
+                self.t.append(data[ii][7])
+
+
+
+    def plotData(self,values = ['acc','quat']):
+        for ii in range(0,len(values)):
+            if values[ii] == 'acc':
+                labels = self.pltLabels
+                plt.figure()
+                plt.suptitle(labels['Accel_title'])
+                plt.subplot(311)
+                plt.plot(self.t,self.x)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][0])
+                plt.subplot(312)
+                plt.plot(self.t,self.y)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][1])
+                plt.subplot(313)
+                plt.plot(self.t,self.z)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][2])
+            if values[ii] == 'quat':
+                labels = self.pltLabels
+                plt.figure()
+                plt.suptitle(labels['Quat_title'])
+                plt.subplot(411)
+                plt.plot(self.t,self.q0)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Quat_ylabels'][0])
+                plt.subplot(412)
+                plt.plot(self.t,self.q1)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Quat_ylabels'][1])
+                plt.subplot(413)
+                plt.plot(self.t,self.q2)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Quat_ylabels'][2])
+                plt.subplot(414)
+                plt.plot(self.t,self.q3)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Quat_ylabels'][3])
+        plt.show()
 
 def getRawData(port,baudrate,BUFFER_LEN):
     # set up the serial line
