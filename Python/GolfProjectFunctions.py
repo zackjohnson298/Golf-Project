@@ -1,6 +1,9 @@
 import serial
 import time
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.fft import fft
+from scipy.signal import butter, lfilter
 from QuaternionMath import *
 
 class Frame():
@@ -20,6 +23,7 @@ class Frame():
         self.xddot = []
         self.yddot = []
         self.zddot = []
+        self.Err = [0,0,0]
         self.t = []
         self.pltLabels = {}
         self.pltLabels['xlabel'] = 'Time t [s]'
@@ -28,7 +32,7 @@ class Frame():
         self.pltLabels['Quat_ylabels'] = ['q0','q1','q2','q3']
         self.pltLabels['Quat_title'] = frameType + 'Frame Quaternions'
 
-    def getMotion(self):
+    def GetMotion(self):
         t = self.t
         # xdot = self.xddot
         # ydot = self.yddot
@@ -48,7 +52,7 @@ class Frame():
 
 
 
-    def fillData(self,data,gravity):
+    def FillData(self, data, calibrate = False, calibrationTime = 5):
         if self.type == 'Sensor':
             for ii in range(0,len(data)):
                 self.q0.append(data[ii][0])
@@ -60,24 +64,57 @@ class Frame():
                 self.zddot.append(data[ii][6])
                 self.t.append(data[ii][7])
         elif self.type == 'World':
-            G = [0,0,gravity]
             for ii in range(0,len(data)):
                 q = data[ii][0:4]
                 vS = data[ii][4:7]
                 vW = Qrotate(q,vS)
-                # GW = Qrotate(q,G)
                 self.q0.append(q[0])
                 self.q1.append(q[1])
                 self.q2.append(q[2])
                 self.q3.append(q[3])
-                self.xddot.append(vW[0] - G[0])#- 2*(q[1]*q[3] - q[0]*q[2]))
-                self.yddot.append(vW[1] - G[1])#- 2*(q[0]*q[1] + q[2]*q[3]))
-                self.zddot.append(vW[2] - G[2])#- (q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]))
+                self.xddot.append(vW[0])
+                self.yddot.append(vW[1])
+                self.zddot.append(vW[2])
                 self.t.append(data[ii][7])
+            if calibrate:
+                self.Calibrate(calibrationTime)
+
+    def Calibrate(self,calibrationTime):
+        count = 0
+        for ii in range(10,len(self.t)):
+            if self.t[ii] >= calibrationTime:
+                break
+            count = count + 1
+        self.Err[0] = sum(self.xddot[10:count])/len(self.xddot[10:count])
+        self.Err[1] = sum(self.yddot[10:count])/len(self.yddot[10:count])
+        self.Err[2] = sum(self.zddot[10:count])/len(self.zddot[10:count])
+
+        for ii in range(0,len(self.t)):
+            self.xddot[ii] -= self.Err[0]
+            self.yddot[ii] -= self.Err[1]
+            self.zddot[ii] -= self.Err[2]
+
+    def ButterFilter(self,cutoff,order):
+        def butter_lowpass(cutoff, fs, order=5):
+            nyq = 0.5 * fs
+            normal_cutoff = cutoff / nyq
+            b, a = butter(order, normal_cutoff, btype='low', analog=False)
+            return b, a
+
+        def butter_lowpass_filter(data, cutoff, fs, order=5):
+            b, a = butter_lowpass(cutoff, fs, order=order)
+            y = lfilter(b, a, data)
+            return y
+
+        N = len(self.t)
+        fs = self.t[-1]/N
+
+        self.xddot = butter_lowpass_filter(np.array(self.xddot), cutoff[0], fs, order)
+        self.yddot = butter_lowpass_filter(np.array(self.xddot), cutoff[1], fs, order)
+        self.zddot = butter_lowpass_filter(np.array(self.xddot), cutoff[2], fs, order)
 
 
-
-    def plotData(self,values = ['acc','quat']):
+    def PlotData(self,values = ['acc','quat']):
         for ii in range(0,len(values)):
             if values[ii] == 'acc':
                 labels = self.pltLabels
@@ -117,7 +154,32 @@ class Frame():
                 plt.ylabel(labels['Quat_ylabels'][3])
         plt.show()
 
-def getRawData(port,baudrate,BUFFER_LEN):
+    def PlotFrequencyDomain(self):
+        N = len(self.t)
+        dt = self.t[-1]/N
+        xdata = np.array(self.xddot)
+        ydata = np.array(self.yddot)
+        zdata = np.array(self.zddot)
+        xf = np.linspace(0.0, 1.0/(2.0*dt), N//2)
+        xdataf = fft(xdata)
+        ydataf = fft(ydata)
+        zdataf = fft(zdata)
+        xdataf = 2.0/N * np.abs(xdataf[0:N//2])
+        ydataf = 2.0/N * np.abs(ydataf[0:N//2])
+        zdataf = 2.0/N * np.abs(zdataf[0:N//2])
+        plt.figure()
+        plt.subplot(311)
+        plt.plot(xf,xdataf)
+        plt.subplot(312)
+        plt.plot(xf,ydataf)
+        plt.subplot(313)
+        plt.plot(xf,zdataf)
+        plt.show()
+
+
+
+
+def GetRawData(port,baudrate,BUFFER_LEN):
     # set up the serial line
     ser = serial.Serial(port, baudrate)
     time.sleep(2)
@@ -147,7 +209,7 @@ def getRawData(port,baudrate,BUFFER_LEN):
     ser.close()
     return rawData
 
-def convertRawData(rawData,gravity):
+def ConvertRawData(rawData,gravity):
     data = []
     dataRow = [0,0,0,0,0,0,0,0]
     for ii in range(0,len(rawData)):
