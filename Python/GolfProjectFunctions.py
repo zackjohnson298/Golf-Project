@@ -2,6 +2,7 @@ import serial
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+from math import *
 from scipy.fft import fft
 from scipy.signal import butter, lfilter
 from statsmodels.nonparametric.smoothers_lowess import lowess
@@ -51,8 +52,6 @@ class Frame():
                 self.y.append(self.ydot[ii]*dt + self.y[ii-1])
                 self.z.append(self.zdot[ii]*dt + self.z[ii-1])
 
-
-
     def FillData(self, data):
         if self.type == 'Sensor':
             for ii in range(0,len(data)):
@@ -77,6 +76,57 @@ class Frame():
                 self.yddot.append(vW[1])
                 self.zddot.append(vW[2])
                 self.t.append(data[ii][7])
+
+    def HardcodeBS(self,threshold):
+        for ii in range(0,len(self.t)):
+            magnitude = sqrt(self.xddot[ii]**2 + self.yddot[ii]**2 + self.zddot[ii]**2)
+            if magnitude <= threshold:
+                self.xddot[ii] = 0
+                self.yddot[ii] = 0
+                self.zddot[ii] = 0
+
+
+    def OffsetPosition(self,t0,t1,t2):
+        T = np.matrix([[t0**2,t0,1],[t1**2,t1,1],[t2**2,t2,1]])
+        count0 = 0
+        count1 = 0
+        count2 = 0
+
+        for ii in range(0,len(self.t)):
+            if self.t[ii] >= t0:
+                count0 = ii
+                break
+        for ii in range(0,len(self.t)):
+            if self.t[ii] >= t1:
+                count1 = ii
+                break
+        for ii in range(0,len(self.t)):
+            if self.t[ii] >= t2:
+                count2 = ii
+                break
+        x0 = self.x[count0]
+        x1 = self.x[count1]
+        x2 = self.x[count2]
+        y0 = self.y[count0]
+        y1 = self.y[count1]
+        y2 = self.y[count2]
+        z0 = self.z[count0]
+        z1 = self.z[count1]
+        z2 = self.z[count2]
+
+        X = np.matrix([[x0],[x1],[x2]])
+        Y = np.matrix([[y0],[y1],[y2]])
+        Z = np.matrix([[z0],[z1],[z2]])
+
+        Cx = np.linalg.inv(T)*X
+        Cy = np.linalg.inv(T)*Y
+        Cz = np.linalg.inv(T)*Z
+
+        for ii in range(0,len(self.t)):
+
+            self.x[ii] -= float(Cx[0]*self.t[ii]**2 + Cx[1]*self.t[ii] + Cx[2])
+            self.y[ii] -= float(Cy[0]*self.t[ii]**2 + Cy[1]*self.t[ii] + Cy[2])
+            self.z[ii] -= float(Cz[0]*self.t[ii]**2 + Cz[1]*self.t[ii] + Cz[2])
 
     def Calibrate(self,calibrationTime):
         count = 0
