@@ -2,9 +2,10 @@ import serial
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import keyboard
 from math import *
 from scipy.fft import fft
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter, filtfilt
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from QuaternionMath import *
 
@@ -29,12 +30,80 @@ class Frame():
         self.t = []
         self.pltLabels = {}
         self.pltLabels['xlabel'] = 'Time t [s]'
-        self.pltLabels['Accel_ylabels'] = ['xddot [m/s^2]','yddot [m/s^2]','zddot [m/s^2]']
-        self.pltLabels['Accel_title'] = frameType + 'Frame Accelerations'
-        self.pltLabels['Quat_ylabels'] = ['q0','q1','q2','q3']
-        self.pltLabels['Quat_title'] = frameType + 'Frame Quaternions'
+        self.pltLabels['Position_ylabels'] = ['x [m/s^2]','y [m/s^2]','z [m/s^2]']
+        self.pltLabels['Velocity_ylabels'] = ['xdot [m/s^2]','ydot [m/s^2]','zdot [m/s^2]']
+        self.pltLabels['Acceleration_ylabels'] = ['xddot [m/s^2]','yddot [m/s^2]','zddot [m/s^2]']
+        self.pltLabels['Title'] = frameType + 'Frame'
+        self.pltLabels['Quaternion_ylabels'] = ['q0','q1','q2','q3']
 
-    def GetMotion(self):
+    def GetVelZUPT(self, gravity = 9.81, thresh=0.035, lowCutoff = 10, highCutoff = 0.001, showPlots = False):
+        aMag = []
+        stationary = []
+        for ii in range(0,len(self.t)):
+            aMag.append(sqrt(self.xddot[ii]**2 + self.yddot[ii]**2 + self.zddot[ii]**2))
+        aMag = abs(ButterFilter(aMag,self.t,highCutoff,1,'high'))
+        aMag = ButterFilter(aMag,self.t,lowCutoff,1,'low')
+        for ii in range(0,len(aMag)):
+            if abs(aMag[ii]) < thresh:
+                stationary.append(1)
+            else:
+                stationary.append(0)
+        if showPlots:
+            plt.figure()
+            plt.plot(self.t,stationary)
+            plt.plot(self.t,aMag)
+            plt.title('Acceleration Magnitude')
+
+        xddot = ButterFilter(self.xddot,self.t,highCutoff,1,'high')
+        yddot = ButterFilter(self.yddot,self.t,highCutoff,1,'high')
+        zddot = ButterFilter(self.zddot,self.t,highCutoff,1,'high')
+
+        nonStatPeriods = []
+        for ii in range(1,len(self.t)):
+            if stationary[ii] == 1:
+                self.xdot.append(0)
+                self.ydot.append(0)
+                self.zdot.append(0)
+                if stationary[ii-1] == 0:
+                    nonStatPeriods.append(list([startIndex,ii-1]))
+            else:
+                dt = self.t[ii] - self.t[ii-1]
+                self.xdot.append(gravity*xddot[ii]*dt + self.xdot[ii-1])
+                self.ydot.append(gravity*yddot[ii]*dt + self.ydot[ii-1])
+                self.zdot.append(gravity*zddot[ii]*dt + self.zdot[ii-1])
+                if stationary[ii-1] == 1:
+                    startIndex = ii-1
+        if showPlots:
+            plt.figure()
+            plt.plot(self.t,self.xdot)
+            plt.plot(self.t,self.ydot)
+            plt.plot(self.t,self.zdot)
+            plt.legend(('xdot','ydot','zdot'))
+            plt.title('Raw Velocities')
+        for i in range(0,len(nonStatPeriods)):
+            i1 = nonStatPeriods[i][0]
+            i2 = nonStatPeriods[i][1]
+            N = i2 - i1
+            dvx = self.xdot[i2]-self.xdot[i1]
+            dvy = self.ydot[i2]-self.ydot[i1]
+            dvz = self.zdot[i2]-self.zdot[i1]
+            ratex = dvx/N
+            ratey = dvy/N
+            ratez = dvz/N
+            for ii in range(i1,i2+1):
+                self.xdot[ii] -= ratex*(ii - i1)
+                self.ydot[ii] -= ratey*(ii - i1)
+                self.zdot[ii] -= ratez*(ii - i1)
+        if showPlots:
+            plt.figure()
+            plt.plot(self.t,self.xdot)
+            plt.plot(self.t,self.ydot)
+            plt.plot(self.t,self.zdot)
+            plt.legend(('xdot','ydot','zdot'))
+            plt.title('Compensated Velocities')
+            plt.show()
+
+    def GetVelocity(self):
         t = self.t
         # xdot = self.xddot
         # ydot = self.yddot
@@ -47,10 +116,17 @@ class Frame():
             self.xdot.append(xddot[ii]*dt + self.xdot[ii-1])
             self.ydot.append(yddot[ii]*dt + self.ydot[ii-1])
             self.zdot.append(zddot[ii]*dt + self.zdot[ii-1])
-            if ii >= 2:
-                self.x.append(self.xdot[ii]*dt + self.x[ii-1])
-                self.y.append(self.ydot[ii]*dt + self.y[ii-1])
-                self.z.append(self.zdot[ii]*dt + self.z[ii-1])
+
+    def GetPosition(self):
+        t = self.t
+        xdot = self.xdot
+        ydot = self.ydot
+        zdot = self.zdot
+        for ii in range(2,len(t)):
+            dt = t[ii] - t[ii-1]
+            self.x.append(xdot[ii]*dt + self.x[ii-1])
+            self.y.append(ydot[ii]*dt + self.y[ii-1])
+            self.z.append(zdot[ii]*dt + self.z[ii-1])
 
     def FillData(self, data):
         if self.type == 'Sensor':
@@ -84,7 +160,6 @@ class Frame():
                 self.xddot[ii] = 0
                 self.yddot[ii] = 0
                 self.zddot[ii] = 0
-
 
     def OffsetPosition(self,t0,t1,t2):
         T = np.matrix([[t0**2,t0,1],[t1**2,t1,1],[t2**2,t2,1]])
@@ -143,6 +218,15 @@ class Frame():
             self.yddot[ii] -= self.Err[1]
             self.zddot[ii] -= self.Err[2]
 
+    def GetGravityMag(self,calibrationTime):
+        gravityList = []
+        for ii in range(0,len(self.t)):
+            if self.t[ii] <= calibrationTime:
+                gravityList.append(sqrt(self.xddot[ii]**2 + self.yddot[ii]**2 + self.zddot[ii]**2))
+            else:
+                break
+        return sum(gravityList)/len(gravityList)
+
     def LowessFilter(self,frac):
         fx = lowess(self.xddot,self.t,frac)
         fy = lowess(self.yddot,self.t,frac)
@@ -151,79 +235,52 @@ class Frame():
         self.yddot = fy[:,1]
         self.zddot = fz[:,1]
 
-    def ButterFilter(self,cutoff,order):
-        def butter_lowpass(cutoff, fs, order=5):
-            nyq = 0.5 * fs
-            normal_cutoff = cutoff / nyq
-            b, a = butter(order, normal_cutoff, btype='low', analog=False)
-            return b, a
+    # def ButterFilter(self,cutoff,order):
+    #     def butter_lowpass(cutoff, fs, order=5):
+    #         nyq = 0.5 * fs
+    #         normal_cutoff = cutoff / nyq
+    #         b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    #         return b, a
+    #
+    #     def butter_lowpass_filter(data, cutoff, fs, order=5):
+    #         b, a = butter_lowpass(cutoff, fs, order=order)
+    #         y = lfilter(b, a, data)
+    #         return y
+    #
+    #     N = len(self.t)
+    #     fs = N/self.t[-1]
+    #
+    #     self.xddot = butter_lowpass_filter(np.array(self.xddot), cutoff[0], fs, order)
+    #     self.yddot = butter_lowpass_filter(np.array(self.yddot), cutoff[1], fs, order)
+    #     self.zddot = butter_lowpass_filter(np.array(self.zddot), cutoff[2], fs, order)
 
-        def butter_lowpass_filter(data, cutoff, fs, order=5):
-            b, a = butter_lowpass(cutoff, fs, order=order)
-            y = lfilter(b, a, data)
-            return y
-
-        N = len(self.t)
-        fs = N/self.t[-1]
-
-        self.xddot = butter_lowpass_filter(np.array(self.xddot), cutoff[0], fs, order)
-        self.yddot = butter_lowpass_filter(np.array(self.yddot), cutoff[1], fs, order)
-        self.zddot = butter_lowpass_filter(np.array(self.zddot), cutoff[2], fs, order)
-
-    def PlotData(self,values = ['acc','quat']):
+    def PlotData(self,values = ['Position','Velocity','Acceleration','Quaternion']):
+        t = self.t
+        labels = self.pltLabels
         for ii in range(0,len(values)):
-            if values[ii] == 'pos':
-                labels = self.pltLabels
-                plt.figure()
-                plt.suptitle(labels['Accel_title'])
-                plt.subplot(311)
-                plt.plot(self.t,self.x)
+            if values[ii] == 'Position':
+                data = [self.x,self.y,self.z]
+                ncols = 1
+                nrows = 3
+            if values[ii] == 'Velocity':
+                data = [self.xdot,self.ydot,self.zdot]
+                ncols = 1
+                nrows = 3
+            if values[ii] == 'Acceleration':
+                data = [self.xddot,self.yddot,self.zddot]
+                ncols = 1
+                nrows = 3
+            if values[ii] == 'Quaternion':
+                data = [self.q0,self.q1,self.q2,self.q3]
+                ncols = 1
+                nrows = 4
+            plt.figure()
+            plt.suptitle(labels['Title'] + values[ii])
+            for jj in range(0,len(data)):
+                plt.subplot(nrows,ncols,jj+1)
+                plt.plot(t,data[jj])
                 plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][0])
-                plt.subplot(312)
-                plt.plot(self.t,self.y)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][1])
-                plt.subplot(313)
-                plt.plot(self.t,self.z)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][2])
-            if values[ii] == 'acc':
-                labels = self.pltLabels
-                plt.figure()
-                plt.suptitle(labels['Accel_title'])
-                plt.subplot(311)
-                plt.plot(self.t,self.xddot)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][0])
-                plt.subplot(312)
-                plt.plot(self.t,self.yddot)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][1])
-                plt.subplot(313)
-                plt.plot(self.t,self.zddot)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Accel_ylabels'][2])
-            if values[ii] == 'quat':
-                labels = self.pltLabels
-                plt.figure()
-                plt.suptitle(labels['Quat_title'])
-                plt.subplot(411)
-                plt.plot(self.t,self.q0)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Quat_ylabels'][0])
-                plt.subplot(412)
-                plt.plot(self.t,self.q1)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Quat_ylabels'][1])
-                plt.subplot(413)
-                plt.plot(self.t,self.q2)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Quat_ylabels'][2])
-                plt.subplot(414)
-                plt.plot(self.t,self.q3)
-                plt.xlabel(labels['xlabel'])
-                plt.ylabel(labels['Quat_ylabels'][3])
+                plt.ylabel(labels[values[ii] + '_ylabels'][jj])
         plt.show()
 
     def PlotFrequencyDomain(self):
@@ -248,7 +305,22 @@ class Frame():
         plt.plot(xf,zdataf)
         plt.show()
 
+def ButterFilter(data,t,cutoff,order,btype):
+    def butter_lowpass(cutoff, fs, order,btype):
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype, analog=False)
+        return b, a
 
+    def butter_lowpass_filter(data, cutoff, fs, order,btype):
+        b, a = butter_lowpass(cutoff, fs, order, btype)
+        y = filtfilt(b, a, data)
+        return y
+
+    N = len(t)
+    fs = N/t[-1]
+
+    return butter_lowpass_filter(np.array(data), cutoff, fs, order,btype)
 
 def TrimData(data,trimTime):
     count = 0
@@ -257,8 +329,10 @@ def TrimData(data,trimTime):
             break
         else:
             count = count + 1
-    print(count)
-    return data[count:len(data)]
+    newData = list(data[count:len(data)])
+    for ii in range(0,len(newData)):
+        newData[ii][7] -= trimTime
+    return newData
 
 def GetRawData(port,baudrate,BUFFER_LEN):
     # set up the serial line
@@ -274,7 +348,10 @@ def GetRawData(port,baudrate,BUFFER_LEN):
     rawData = []
     ii = 0
     while True:
-        try:
+        if keyboard.is_pressed('q'):
+            print('Keyboard Interupt')
+            break
+        else:
             b = ser.readline()
             if len(b) == BUFFER_LEN:
                 if ii == 0:
@@ -283,10 +360,8 @@ def GetRawData(port,baudrate,BUFFER_LEN):
                 else:
                     t = [time.time() - start]
                 rawData.append(list(b) + list(t))
-            ii = ii + 1
-        except:
-            print('Keyboard Interupt')
-            break
+                ii = ii + 1
+
     ser.close()
     return rawData
 
