@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import fft
 from scipy.signal import butter, lfilter
+from statsmodels.nonparametric.smoothers_lowess import lowess
 from QuaternionMath import *
 
 class Frame():
@@ -52,7 +53,7 @@ class Frame():
 
 
 
-    def FillData(self, data, calibrate = False, calibrationTime = 5):
+    def FillData(self, data):
         if self.type == 'Sensor':
             for ii in range(0,len(data)):
                 self.q0.append(data[ii][0])
@@ -76,8 +77,6 @@ class Frame():
                 self.yddot.append(vW[1])
                 self.zddot.append(vW[2])
                 self.t.append(data[ii][7])
-            if calibrate:
-                self.Calibrate(calibrationTime)
 
     def Calibrate(self,calibrationTime):
         count = 0
@@ -94,6 +93,14 @@ class Frame():
             self.yddot[ii] -= self.Err[1]
             self.zddot[ii] -= self.Err[2]
 
+    def LowessFilter(self,frac):
+        fx = lowess(self.xddot,self.t,frac)
+        fy = lowess(self.yddot,self.t,frac)
+        fz = lowess(self.zddot,self.t,frac)
+        self.xddot = fx[:,1]
+        self.yddot = fy[:,1]
+        self.zddot = fz[:,1]
+
     def ButterFilter(self,cutoff,order):
         def butter_lowpass(cutoff, fs, order=5):
             nyq = 0.5 * fs
@@ -107,16 +114,15 @@ class Frame():
             return y
 
         N = len(self.t)
-        fs = self.t[-1]/N
+        fs = N/self.t[-1]
 
         self.xddot = butter_lowpass_filter(np.array(self.xddot), cutoff[0], fs, order)
-        self.yddot = butter_lowpass_filter(np.array(self.xddot), cutoff[1], fs, order)
-        self.zddot = butter_lowpass_filter(np.array(self.xddot), cutoff[2], fs, order)
-
+        self.yddot = butter_lowpass_filter(np.array(self.yddot), cutoff[1], fs, order)
+        self.zddot = butter_lowpass_filter(np.array(self.zddot), cutoff[2], fs, order)
 
     def PlotData(self,values = ['acc','quat']):
         for ii in range(0,len(values)):
-            if values[ii] == 'acc':
+            if values[ii] == 'pos':
                 labels = self.pltLabels
                 plt.figure()
                 plt.suptitle(labels['Accel_title'])
@@ -130,6 +136,22 @@ class Frame():
                 plt.ylabel(labels['Accel_ylabels'][1])
                 plt.subplot(313)
                 plt.plot(self.t,self.z)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][2])
+            if values[ii] == 'acc':
+                labels = self.pltLabels
+                plt.figure()
+                plt.suptitle(labels['Accel_title'])
+                plt.subplot(311)
+                plt.plot(self.t,self.xddot)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][0])
+                plt.subplot(312)
+                plt.plot(self.t,self.yddot)
+                plt.xlabel(labels['xlabel'])
+                plt.ylabel(labels['Accel_ylabels'][1])
+                plt.subplot(313)
+                plt.plot(self.t,self.zddot)
                 plt.xlabel(labels['xlabel'])
                 plt.ylabel(labels['Accel_ylabels'][2])
             if values[ii] == 'quat':
@@ -178,6 +200,15 @@ class Frame():
 
 
 
+def TrimData(data,trimTime):
+    count = 0
+    for ii in range(0,len(data)):
+        if data[ii][7] >= trimTime:
+            break
+        else:
+            count = count + 1
+    print(count)
+    return data[count:len(data)]
 
 def GetRawData(port,baudrate,BUFFER_LEN):
     # set up the serial line

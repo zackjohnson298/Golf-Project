@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.signal import butter, lfilter, freqz
+from scipy.signal.filter_design import butter, freqz
+from scipy.signal.signaltools import lfilter
 import matplotlib.pyplot as plt
 
 
