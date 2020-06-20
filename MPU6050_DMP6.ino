@@ -144,7 +144,8 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-uint8_t outputPacket[44] = { '$', 0x02, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, '\r', '\n' };
+uint8_t outputPacket44[44] = { '$', 0x02, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, '\r', '\n' };
+uint8_t outputPacket[24] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, '\r', '\n' };
 
 
 
@@ -204,12 +205,12 @@ void setup() {
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(34);
-    mpu.setYGyroOffset(36);
-    mpu.setZGyroOffset(33);
-    mpu.setXAccelOffset(-386); // 1688 factory default for my test chip
-    mpu.setYAccelOffset(817); // 1688 factory default for my test chip
-    mpu.setZAccelOffset(1460); // 1688 factory default for my test chip
+    mpu.setXGyroOffset(31);
+    mpu.setYGyroOffset(34);
+    mpu.setZGyroOffset(32);
+    mpu.setXAccelOffset(-356); // 1688 factory default for my test chip
+    mpu.setYAccelOffset(775); // 1688 factory default for my test chip
+    mpu.setZAccelOffset(147); // 1688 factory default for my test chip
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
@@ -378,57 +379,87 @@ void loop() {
 //          
 //          Serial.write(outputPacket, 32);
 
-      outputPacket[2] = fifoBuffer[0];
-          outputPacket[3] = fifoBuffer[1];
-          outputPacket[4] = fifoBuffer[2];
-          outputPacket[5] = fifoBuffer[3];
-          
-          outputPacket[6] = fifoBuffer[4];
-          outputPacket[7] = fifoBuffer[5];
-          outputPacket[8] = fifoBuffer[6];
-          outputPacket[9] = fifoBuffer[7];
-          
-          outputPacket[10] = fifoBuffer[8];
-          outputPacket[11] = fifoBuffer[9];
-          outputPacket[12] = fifoBuffer[10];
-          outputPacket[13] = fifoBuffer[11];
-          
-          outputPacket[14] = fifoBuffer[12];
-          outputPacket[15] = fifoBuffer[13];
-          outputPacket[16] = fifoBuffer[14];
-          outputPacket[17] = fifoBuffer[15];
+//      outputPacket[2] = fifoBuffer[0];
+//          outputPacket[3] = fifoBuffer[1];
+//          outputPacket[4] = fifoBuffer[2];
+//          outputPacket[5] = fifoBuffer[3];
+//          
+//          outputPacket[6] = fifoBuffer[4];
+//          outputPacket[7] = fifoBuffer[5];
+//          outputPacket[8] = fifoBuffer[6];
+//          outputPacket[9] = fifoBuffer[7];
+//          
+//          outputPacket[10] = fifoBuffer[8];
+//          outputPacket[11] = fifoBuffer[9];
+//          outputPacket[12] = fifoBuffer[10];
+//          outputPacket[13] = fifoBuffer[11];
+//          
+//          outputPacket[14] = fifoBuffer[12];
+//          outputPacket[15] = fifoBuffer[13];
+//          outputPacket[16] = fifoBuffer[14];
+//          outputPacket[17] = fifoBuffer[15];
+//
+//          outputPacket[18] = fifoBuffer[16];
+//          outputPacket[19] = fifoBuffer[17];
+//          outputPacket[20] = fifoBuffer[18];
+//          outputPacket[21] = fifoBuffer[19];
+//          
+//          outputPacket[22] = fifoBuffer[20];
+//          outputPacket[23] = fifoBuffer[21];
+//          outputPacket[24] = fifoBuffer[22];
+//          outputPacket[25] = fifoBuffer[23];
+//          
+//          outputPacket[26] = fifoBuffer[24];
+//          outputPacket[27] = fifoBuffer[25];
+//          outputPacket[28] = fifoBuffer[26];
+//          outputPacket[29] = fifoBuffer[27];
+//          
+//          outputPacket[30] = fifoBuffer[28];
+//          outputPacket[31] = fifoBuffer[29];
+//          outputPacket[32] = fifoBuffer[30];
+//          outputPacket[33] = fifoBuffer[31];
+//          
+//          outputPacket[34] = fifoBuffer[32];
+//          outputPacket[35] = fifoBuffer[33];
+//          outputPacket[36] = fifoBuffer[34];
+//          outputPacket[37] = fifoBuffer[35];
+//          
+//          outputPacket[38] = fifoBuffer[36];
+//          outputPacket[39] = fifoBuffer[37];
+//          outputPacket[40] = fifoBuffer[38];
+//          outputPacket[41] = fifoBuffer[39];
 
-          outputPacket[18] = fifoBuffer[16];
-          outputPacket[19] = fifoBuffer[17];
-          outputPacket[20] = fifoBuffer[18];
-          outputPacket[21] = fifoBuffer[19];
+          outputPacket[2] = fifoBuffer[0];
+          outputPacket[3] = fifoBuffer[1];
           
-          outputPacket[22] = fifoBuffer[20];
-          outputPacket[23] = fifoBuffer[21];
-          outputPacket[24] = fifoBuffer[22];
-          outputPacket[25] = fifoBuffer[23];
+          outputPacket[4] = fifoBuffer[4];
+          outputPacket[5] = fifoBuffer[5];
           
-          outputPacket[26] = fifoBuffer[24];
-          outputPacket[27] = fifoBuffer[25];
-          outputPacket[28] = fifoBuffer[26];
-          outputPacket[29] = fifoBuffer[27];
+          outputPacket[6] = fifoBuffer[8];
+          outputPacket[7] = fifoBuffer[9];
           
-          outputPacket[30] = fifoBuffer[28];
-          outputPacket[31] = fifoBuffer[29];
-          outputPacket[32] = fifoBuffer[30];
-          outputPacket[33] = fifoBuffer[31];
+          outputPacket[8] = fifoBuffer[12];
+          outputPacket[9] = fifoBuffer[13];
           
-          outputPacket[34] = fifoBuffer[32];
-          outputPacket[35] = fifoBuffer[33];
-          outputPacket[36] = fifoBuffer[34];
-          outputPacket[37] = fifoBuffer[35];
+          outputPacket[10] = fifoBuffer[16];
+          outputPacket[11] = fifoBuffer[17];
           
-          outputPacket[38] = fifoBuffer[36];
-          outputPacket[39] = fifoBuffer[37];
-          outputPacket[40] = fifoBuffer[38];
-          outputPacket[41] = fifoBuffer[39];
+          outputPacket[12] = fifoBuffer[20];
+          outputPacket[13] = fifoBuffer[21];
           
-          Serial.write(outputPacket, 44);
+          outputPacket[14] = fifoBuffer[24];
+          outputPacket[15] = fifoBuffer[25];
+          
+          outputPacket[16] = fifoBuffer[28];
+          outputPacket[17] = fifoBuffer[29];
+
+          outputPacket[18] = fifoBuffer[32];
+          outputPacket[19] = fifoBuffer[33];
+          
+          outputPacket[20] = fifoBuffer[36];
+          outputPacket[21] = fifoBuffer[37];
+          
+          Serial.write(outputPacket, 24);
         
 //        #ifdef OUTPUT_ACCEL_QUATERNION
 //            outputPacket[2] = fifoBuffer[0];
