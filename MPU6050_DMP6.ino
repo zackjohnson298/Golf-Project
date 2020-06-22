@@ -83,7 +83,9 @@ MPU6050 mpu;
  * ========================================================================= */
 
 
-#define OUTPUT_ACCEL_QUATERNION
+//#define OUTPUT_QUAT_GYRO_ACC
+#define OUTPUT_GYRO_ACC
+
 // uncomment "OUTPUT_READABLE_QUATERNION" if you want to see the actual
 // quaternion components in a [w, x, y, z] format (not best for parsing
 // on a remote host such as Processing or something though)
@@ -133,19 +135,18 @@ uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
 uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
-// orientation/motion vars
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
-VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
-float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+//// orientation/motion vars
+//Quaternion q;           // [w, x, y, z]         quaternion container
+//VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+//VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+//VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+//VectorFloat gravity;    // [x, y, z]            gravity vector
+//float euler[3];         // [psi, theta, phi]    Euler angle container
+//float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-// packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-uint8_t outputPacket44[44] = { '$', 0x02, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, '\r', '\n' };
-uint8_t outputPacket[24] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, '\r', '\n' };
+// Initialize Output Packet
+uint8_t outputPacketQGA[24] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, '\r', '\n' };
+uint8_t outputPacketGA[16] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, '\r', '\n' };
 
 
 
@@ -205,19 +206,19 @@ void setup() {
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(31);
-    mpu.setYGyroOffset(34);
-    mpu.setZGyroOffset(32);
-    mpu.setXAccelOffset(-356); // 1688 factory default for my test chip
-    mpu.setYAccelOffset(775); // 1688 factory default for my test chip
-    mpu.setZAccelOffset(147); // 1688 factory default for my test chip
+//    mpu.setXGyroOffset(31);
+//    mpu.setYGyroOffset(34);
+//    mpu.setZGyroOffset(32);
+//    mpu.setXAccelOffset(-356); // 1688 factory default for my test chip
+//    mpu.setYAccelOffset(775); // 1688 factory default for my test chip
+//    mpu.setZAccelOffset(147); // 1688 factory default for my test chip
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
         // Calibration Time: generate offsets and calibrate our MPU6050
-        mpu.CalibrateAccel(6);
-        mpu.CalibrateGyro(6);
-        mpu.PrintActiveOffsets();
+        //mpu.CalibrateAccel(6);
+        //mpu.CalibrateGyro(6);
+        //mpu.PrintActiveOffsets();
         // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
@@ -260,224 +261,62 @@ void loop() {
     if (!dmpReady) return;
     // read a packet from FIFO
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
-//        #ifdef OUTPUT_READABLE_QUATERNION
-//            // display quaternion values in easy matrix form: w x y z
-//            mpu.dmpGetQuaternion(&q, fifoBuffer);
-//            Serial.print("quat\t");
-//            Serial.print(q.w);
-//            Serial.print("\t");
-//            Serial.print(q.x);
-//            Serial.print("\t");
-//            Serial.print(q.y);
-//            Serial.print("\t");
-//            Serial.println(q.z);
-//        #endif
-//
-//        #ifdef OUTPUT_READABLE_EULER
-//            // display Euler angles in degrees
-//            mpu.dmpGetQuaternion(&q, fifoBuffer);
-//            mpu.dmpGetEuler(euler, &q);
-//            Serial.print("euler\t");
-//            Serial.print(euler[0] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.print(euler[1] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.println(euler[2] * 180/M_PI);
-//        #endif
-//
-//        #ifdef OUTPUT_READABLE_YAWPITCHROLL
-//            // display Euler angles in degrees
-//            mpu.dmpGetQuaternion(&q, fifoBuffer);
-//            mpu.dmpGetGravity(&gravity, &q);
-//            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//            Serial.print("ypr\t");
-//            Serial.print(ypr[0] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.print(ypr[1] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.println(ypr[2] * 180/M_PI);
-//        #endif
-//
-//        #ifdef OUTPUT_READABLE_REALACCEL
-//            // display real acceleration, adjusted to remove gravity
-//            mpu.dmpGetQuaternion(&q, fifoBuffer);
-//            mpu.dmpGetAccel(&aa, fifoBuffer);
-//            mpu.dmpGetGravity(&gravity, &q);
-//            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-//            Serial.print("areal\t");
-//            Serial.print(aaReal.x);
-//            Serial.print("\t");
-//            Serial.print(aaReal.y);
-//            Serial.print("\t");
-//            Serial.println(aaReal.z);
-//        #endif
-//
-//        #ifdef OUTPUT_READABLE_WORLDACCEL
-//            // display initial world-frame acceleration, adjusted to remove gravity
-//            // and rotated based on known orientation from quaternion
-//            mpu.dmpGetQuaternion(&q, fifoBuffer);
-//            mpu.dmpGetAccel(&aa, fifoBuffer);
-//            mpu.dmpGetGravity(&gravity, &q);
-//            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-//            mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-//            Serial.print("aworld\t");
-//            Serial.print(aaWorld.x);
-//            Serial.print("\t");
-//            Serial.print(aaWorld.y);
-//            Serial.print("\t");
-//            Serial.println(aaWorld.z);
-//        #endif
-//    
-//        #ifdef OUTPUT_TEAPOT
-//            // display quaternion values in InvenSense Teapot demo format:
-//            teapotPacket[2] = fifoBuffer[0];
-//            teapotPacket[3] = fifoBuffer[1];
-//            teapotPacket[4] = fifoBuffer[4];
-//            teapotPacket[5] = fifoBuffer[5];
-//            teapotPacket[6] = fifoBuffer[8];
-//            teapotPacket[7] = fifoBuffer[9];
-//            teapotPacket[8] = fifoBuffer[12];
-//            teapotPacket[9] = fifoBuffer[13];
-//            Serial.write(teapotPacket, 14);
-//            teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
-//        #endif
+      #ifdef OUTPUT_QUAT_GYRO_ACC 
+          // Quaternion
+          outputPacketQGA[2] = fifoBuffer[0];
+          outputPacketQGA[3] = fifoBuffer[1];
+          
+          outputPacketQGA[4] = fifoBuffer[4];
+          outputPacketQGA[5] = fifoBuffer[5];
+          
+          outputPacketQGA[6] = fifoBuffer[8];
+          outputPacketQGA[7] = fifoBuffer[9];
+          
+          outputPacketQGA[8] = fifoBuffer[12];
+          outputPacketQGA[9] = fifoBuffer[13];
+          // Gyro
+          outputPacketQGA[10] = fifoBuffer[16];
+          outputPacketQGA[11] = fifoBuffer[17];
+          
+          outputPacketQGA[12] = fifoBuffer[20];
+          outputPacketQGA[13] = fifoBuffer[21];
+          
+          outputPacketQGA[14] = fifoBuffer[24];
+          outputPacketQGA[15] = fifoBuffer[25];
+          // Acc
+          outputPacketQGA[16] = fifoBuffer[28];
+          outputPacketQGA[17] = fifoBuffer[29];
 
-//          outputPacket[2] = fifoBuffer[0];
-//          outputPacket[3] = fifoBuffer[1];
-//          outputPacket[4] = fifoBuffer[2];
-//          outputPacket[5] = fifoBuffer[3];
-//          
-//          outputPacket[6] = fifoBuffer[4];
-//          outputPacket[7] = fifoBuffer[5];
-//          outputPacket[8] = fifoBuffer[6];
-//          outputPacket[9] = fifoBuffer[7];
-//          
-//          outputPacket[10] = fifoBuffer[8];
-//          outputPacket[11] = fifoBuffer[9];
-//          outputPacket[12] = fifoBuffer[10];
-//          outputPacket[13] = fifoBuffer[11];
-//          
-//          outputPacket[14] = fifoBuffer[12];
-//          outputPacket[15] = fifoBuffer[13];
-//          outputPacket[16] = fifoBuffer[14];
-//          outputPacket[17] = fifoBuffer[15];
-//          
-//          outputPacket[18] = fifoBuffer[28];
-//          outputPacket[19] = fifoBuffer[29];
-//          outputPacket[20] = fifoBuffer[30];
-//          outputPacket[21] = fifoBuffer[31];
-//          
-//          outputPacket[22] = fifoBuffer[32];
-//          outputPacket[23] = fifoBuffer[33];
-//          outputPacket[24] = fifoBuffer[34];
-//          outputPacket[25] = fifoBuffer[35];
-//          
-//          outputPacket[26] = fifoBuffer[36];
-//          outputPacket[27] = fifoBuffer[37];
-//          outputPacket[28] = fifoBuffer[38];
-//          outputPacket[29] = fifoBuffer[39];
-//          
-//          Serial.write(outputPacket, 32);
-
-//      outputPacket[2] = fifoBuffer[0];
-//          outputPacket[3] = fifoBuffer[1];
-//          outputPacket[4] = fifoBuffer[2];
-//          outputPacket[5] = fifoBuffer[3];
-//          
-//          outputPacket[6] = fifoBuffer[4];
-//          outputPacket[7] = fifoBuffer[5];
-//          outputPacket[8] = fifoBuffer[6];
-//          outputPacket[9] = fifoBuffer[7];
-//          
-//          outputPacket[10] = fifoBuffer[8];
-//          outputPacket[11] = fifoBuffer[9];
-//          outputPacket[12] = fifoBuffer[10];
-//          outputPacket[13] = fifoBuffer[11];
-//          
-//          outputPacket[14] = fifoBuffer[12];
-//          outputPacket[15] = fifoBuffer[13];
-//          outputPacket[16] = fifoBuffer[14];
-//          outputPacket[17] = fifoBuffer[15];
-//
-//          outputPacket[18] = fifoBuffer[16];
-//          outputPacket[19] = fifoBuffer[17];
-//          outputPacket[20] = fifoBuffer[18];
-//          outputPacket[21] = fifoBuffer[19];
-//          
-//          outputPacket[22] = fifoBuffer[20];
-//          outputPacket[23] = fifoBuffer[21];
-//          outputPacket[24] = fifoBuffer[22];
-//          outputPacket[25] = fifoBuffer[23];
-//          
-//          outputPacket[26] = fifoBuffer[24];
-//          outputPacket[27] = fifoBuffer[25];
-//          outputPacket[28] = fifoBuffer[26];
-//          outputPacket[29] = fifoBuffer[27];
-//          
-//          outputPacket[30] = fifoBuffer[28];
-//          outputPacket[31] = fifoBuffer[29];
-//          outputPacket[32] = fifoBuffer[30];
-//          outputPacket[33] = fifoBuffer[31];
-//          
-//          outputPacket[34] = fifoBuffer[32];
-//          outputPacket[35] = fifoBuffer[33];
-//          outputPacket[36] = fifoBuffer[34];
-//          outputPacket[37] = fifoBuffer[35];
-//          
-//          outputPacket[38] = fifoBuffer[36];
-//          outputPacket[39] = fifoBuffer[37];
-//          outputPacket[40] = fifoBuffer[38];
-//          outputPacket[41] = fifoBuffer[39];
-
-          outputPacket[2] = fifoBuffer[0];
-          outputPacket[3] = fifoBuffer[1];
+          outputPacketQGA[18] = fifoBuffer[32];
+          outputPacketQGA[19] = fifoBuffer[33];
           
-          outputPacket[4] = fifoBuffer[4];
-          outputPacket[5] = fifoBuffer[5];
+          outputPacketQGA[20] = fifoBuffer[36];
+          outputPacketQGA[21] = fifoBuffer[37];
           
-          outputPacket[6] = fifoBuffer[8];
-          outputPacket[7] = fifoBuffer[9];
-          
-          outputPacket[8] = fifoBuffer[12];
-          outputPacket[9] = fifoBuffer[13];
-          
-          outputPacket[10] = fifoBuffer[16];
-          outputPacket[11] = fifoBuffer[17];
-          
-          outputPacket[12] = fifoBuffer[20];
-          outputPacket[13] = fifoBuffer[21];
-          
-          outputPacket[14] = fifoBuffer[24];
-          outputPacket[15] = fifoBuffer[25];
-          
-          outputPacket[16] = fifoBuffer[28];
-          outputPacket[17] = fifoBuffer[29];
-
-          outputPacket[18] = fifoBuffer[32];
-          outputPacket[19] = fifoBuffer[33];
-          
-          outputPacket[20] = fifoBuffer[36];
-          outputPacket[21] = fifoBuffer[37];
-          
-          Serial.write(outputPacket, 24);
+          Serial.write(outputPacketQGA, 24);
+        #endif
         
-//        #ifdef OUTPUT_ACCEL_QUATERNION
-//            outputPacket[2] = fifoBuffer[0];
-//            outputPacket[3] = fifoBuffer[1];
-//            outputPacket[4] = fifoBuffer[4];
-//            outputPacket[5] = fifoBuffer[5];
-//            outputPacket[6] = fifoBuffer[8];
-//            outputPacket[7] = fifoBuffer[9];
-//            outputPacket[8] = fifoBuffer[12];
-//            outputPacket[9] = fifoBuffer[13];
-//            outputPacket[10] = fifoBuffer[28];
-//            outputPacket[11] = fifoBuffer[29];
-//            outputPacket[12] = fifoBuffer[32];
-//            outputPacket[13] = fifoBuffer[33];
-//            outputPacket[14] = fifoBuffer[36];
-//            outputPacket[15] = fifoBuffer[37];
-//            Serial.write(outputPacket, 18);
-//        #endif
+        #ifdef OUTPUT_GYRO_ACC
+          // Gyro
+          outputPacketGA[2] = fifoBuffer[16];
+          outputPacketGA[3] = fifoBuffer[17];
+          
+          outputPacketGA[4] = fifoBuffer[20];
+          outputPacketGA[5] = fifoBuffer[21];
+          
+          outputPacketGA[6] = fifoBuffer[24];
+          outputPacketGA[7] = fifoBuffer[25];
+          // Acc
+          outputPacketGA[8] = fifoBuffer[28];
+          outputPacketGA[9] = fifoBuffer[29];
+
+          outputPacketGA[10] = fifoBuffer[32];
+          outputPacketGA[11] = fifoBuffer[33];
+          
+          outputPacketGA[12] = fifoBuffer[36];
+          outputPacketGA[13] = fifoBuffer[37];
+          Serial.write(outputPacketGA, 16);
+        #endif
         
         // blink LED to indicate activity
         blinkState = !blinkState;
